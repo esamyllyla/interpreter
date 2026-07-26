@@ -1,1 +1,2 @@
-*.exe # ignore executables
+# ignore executables
+*.exe
