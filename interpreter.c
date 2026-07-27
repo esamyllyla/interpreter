@@ -61,6 +61,8 @@ int update_result(int operation, int left_operand, int right_operand)
         case MULTIPLY:
             return left_operand * right_operand;
     }
+    
+    return left_operand;
 }
 
 /*
@@ -81,8 +83,6 @@ int interpreter(char *input, int input_length)
 
     int operator_eaten = 0;
     int operation = 0;
-    
-    int result = 0;
 
     while(token_index < input_length)
     {
@@ -123,10 +123,9 @@ int interpreter(char *input, int input_length)
             return 0;
         }
     }
+    left_operand = update_result(operation, left_operand, right_operand);
     
-    result = update_result(operation, left_operand, right_operand);
-    
-    printf("%d\n", result);
+    printf("%d\n", left_operand);
     return 1;
 }
 
