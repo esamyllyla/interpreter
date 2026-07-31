@@ -13,11 +13,11 @@ struct token
 
 void clear_input_buffer(char *input, int size);
 int interpreter(char *input, int input_length, int *result);
-struct token get_token(char *input, int token_index);
-void eat_token(char *input, int *token_index, struct token *token);
 int update_result(int operation, int left_operand, int right_operand);
-int fetch_term(char *input, int *token_index, int *result, int input_length);
-int fetch_operator(char *input, int *token_index, int *operator, int input_length);
+int fetch_term(char *input, int *input_char_index, int *result, int input_length);
+int fetch_operator(char *input, int *input_char_index, int *operator, int input_length);
+int operation(int operators[], int operation_count,
+    char *input, int *input_char_index, int *result, int input_length);
 
 int main()
 {
@@ -68,31 +68,55 @@ Summing up arbitrary amount of plus and minus operations
 
 int interpreter(char *input, int input_length, int *result)
 {
-    int token_index = 0;
-    int left_operand = 0;
-    int right_operand = 0;
-
-    struct token current_token;
-
-    int operator_eaten = 0;
-    int operation = 0;
+    int input_char_index = 0;
+    int operator = 0;
 
     int term;
     int term2;
 
-    if(fetch_term(input, &token_index, &term, input_length))
+    if(fetch_term(input, &input_char_index, &term, input_length))
     {
-        while(token_index < input_length)
+        while(input_char_index < input_length)
         {
-            if(fetch_operator(input, &token_index, &operation, input_length))
+            if(fetch_operator(input, &input_char_index, &operator, input_length))
             {
-                if(!fetch_term(input, &token_index, &term2, input_length))
+                if(!fetch_term(input, &input_char_index, &term2, input_length))
                 {
                     return 0;
                 }
                 else
                 {
-                    term = update_result(operation, term, term2);
+                    term = update_result(operator, term, term2);
+                    *result = term;
+                }
+            }
+            else return 0;
+        }
+        *result = term;
+        return 1;
+    }
+    else return 0;
+}
+
+int operation(int operators[], int operation_count,
+    char *input, int *input_char_index, int *result, int input_length)
+{
+    int term;
+    int term2;
+    
+    if(fetch_term(input, input_char_index, &term, input_length))
+    {
+        while(*input_char_index < input_length)
+        {
+            if(fetch_operator(input, input_char_index, &operator, input_length))
+            {
+                if(!fetch_term(input, input_char_index, &term2, input_length))
+                {
+                    return 0;
+                }
+                else
+                {
+                    term = update_result(operator, term, term2);
                     *result = term;
                 }
             }
@@ -119,105 +143,60 @@ int update_result(int operation, int left_operand, int right_operand)
     return left_operand;
 }
 
-int fetch_term(char *input, int *token_index, int *result, int input_length)
+int fetch_term(char *input, int *input_char_index, int *result, int input_length)
 // Returns boolean telling if succeeded
 {
-    while(input[*token_index] == ' ' && *token_index < input_length)
+    while(input[*input_char_index] == ' ' && *input_char_index < input_length)
     {
-        *token_index = *token_index + 1;
+        *input_char_index = *input_char_index + 1;
     }
     
-    if(!(48 <= input[*token_index] && input[*token_index] <= 57))
+    if(!(48 <= input[*input_char_index] && input[*input_char_index] <= 57))
     {
         return 0;
     }
     
     int term = 0;
-    while(48 <= input[*token_index] && input[*token_index] <= 57)
+    while(48 <= input[*input_char_index] && input[*input_char_index] <= 57)
     {
         term *= 10;
-        term += input[*token_index] - 48;
+        term += input[*input_char_index] - 48;
         
-        *token_index = *token_index + 1;
+        *input_char_index = *input_char_index + 1;
     }
     
     *result = term;
     
-    while(input[*token_index] == ' ' && *token_index < input_length)
+    while(input[*input_char_index] == ' ' && *input_char_index < input_length)
     {
-        *token_index = *token_index + 1;
+        *input_char_index = *input_char_index + 1;
     }
     return 1;
 }
 
-int fetch_operator(char *input, int *token_index, int *operator, int input_length)
+int fetch_operator(char *input, int *input_char_index, int *operator, int input_length)
 {
-    while(*token_index < input_length)
+    while(*input_char_index < input_length)
     {
-        if(input[*token_index] == ' ')
+        if(input[*input_char_index] == ' ')
         {
-            *token_index = *token_index + 1;
+            *input_char_index = *input_char_index + 1;
             continue;
         }
-        if(input[*token_index] == '+')
+        if(input[*input_char_index] == '+')
         {   
             *operator = PLUS;
-            *token_index = *token_index + 1;
+            *input_char_index = *input_char_index + 1;
             return 1;
         }
-        if(input[*token_index] == '-')
+        if(input[*input_char_index] == '-')
         {
             *operator = MINUS;
-            *token_index = *token_index + 1;
+            *input_char_index = *input_char_index + 1;
             return 1;
         }
-        *token_index = *token_index + 1;
+        *input_char_index = *input_char_index + 1;
     }
     
     return 0;
-}
-
-void eat_token(char *input, int *token_index, struct token *token)
-{
-    struct token thistoken = get_token(input, *token_index);
-    token->type = thistoken.type;
-    token->value = thistoken.value;
-    
-    *token_index = *token_index + 1;
-}
-
-struct token get_token(char *input, int token_index)
-{
-    struct token token;
-    token.type = INVALID;
-    token.value = 0;
-    
-    if(48 <= input[token_index] && input[token_index] <= 57)
-    {
-        token.type = INTEGER;
-        token.value = input[token_index] - 48;
-    }
-    
-    if(input[token_index] == '+')
-    {
-        token.type = PLUS;
-        token.value = '+';
-    }
-    if(input[token_index] == '-')
-    {
-        token.type = MINUS;
-        token.value = '-';
-    }
-    if(input[token_index] == '*')
-    {
-        token.type = MULTIPLY;
-        token.value = '*';
-    }
-    if(input[token_index] == ' ')
-    {
-        token.type = SPACE;
-        token.value = ' ';
-    }
-    
-    return token;
 }
