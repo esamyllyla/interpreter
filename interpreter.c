@@ -2,7 +2,7 @@
 
 enum
 {
-    INTEGER, PLUS, MINUS, MULTIPLY, SPACE, INVALID
+    INTEGER, PLUS, MINUS, MULTIPLY, DIVISION, SPACE, INVALID
 };
 
 struct token
@@ -14,10 +14,9 @@ struct token
 void clear_input_buffer(char *input, int size);
 int interpreter(char *input, int input_length, int *result);
 int update_result(int operation, int left_operand, int right_operand);
-int fetch_term(char *input, int *input_char_index, int *result, int input_length);
+int fetch_factor(char *input, int *input_char_index, int *result, int input_length);
 int fetch_operator(char *input, int *input_char_index, int *operator, int input_length);
-int operation(int operators[], int operation_count,
-    char *input, int *input_char_index, int *result, int input_length);
+int operate_term(char *input, int *input_char_index, int *result, int input_length);
 
 int main()
 {
@@ -74,13 +73,20 @@ int interpreter(char *input, int input_length, int *result)
     int term;
     int term2;
 
-    if(fetch_term(input, &input_char_index, &term, input_length))
+    int rval = 0;
+    /*
+    rval = operate_term(input, &input_char_index, &term, input_length);
+    printf("result: %d, char index: %d\n", term, input_char_index);
+    
+    *result = term;
+    */
+    if(operate_term(input, &input_char_index, &term, input_length))
     {
         while(input_char_index < input_length)
         {
             if(fetch_operator(input, &input_char_index, &operator, input_length))
             {
-                if(!fetch_term(input, &input_char_index, &term2, input_length))
+                if(!operate_term(input, &input_char_index, &term2, input_length))
                 {
                     return 0;
                 }
@@ -90,27 +96,36 @@ int interpreter(char *input, int input_length, int *result)
                     *result = term;
                 }
             }
-            else return 0;
+            else
+            {
+                return 0;
+            }
         }
         *result = term;
         return 1;
     }
     else return 0;
+    
+    return rval;
 }
 
-int operation(int operators[], int operation_count,
-    char *input, int *input_char_index, int *result, int input_length)
+int operate_term(char *input, int *input_char_index, int *result, int input_length)
 {
+    int operator = 0;
+    
     int term;
     int term2;
     
-    if(fetch_term(input, input_char_index, &term, input_length))
+    if(fetch_factor(input, input_char_index, &term, input_length))
     {
-        while(*input_char_index < input_length)
+        while(!(input[*input_char_index] == '+')
+            ^ !(input[*input_char_index] == '-')
+            ^ (*input_char_index < input_length))
+            /**/
         {
             if(fetch_operator(input, input_char_index, &operator, input_length))
             {
-                if(!fetch_term(input, input_char_index, &term2, input_length))
+                if(!fetch_factor(input, input_char_index, &term2, input_length))
                 {
                     return 0;
                 }
@@ -120,7 +135,10 @@ int operation(int operators[], int operation_count,
                     *result = term;
                 }
             }
-            else return 0;
+            else
+            {
+                return 0;
+            }
         }
         *result = term;
         return 1;
@@ -138,12 +156,14 @@ int update_result(int operation, int left_operand, int right_operand)
             return left_operand - right_operand;
         case MULTIPLY:
             return left_operand * right_operand;
+        case DIVISION:
+            return left_operand / right_operand;
     }
     
     return left_operand;
 }
 
-int fetch_term(char *input, int *input_char_index, int *result, int input_length)
+int fetch_factor(char *input, int *input_char_index, int *result, int input_length)
 // Returns boolean telling if succeeded
 {
     while(input[*input_char_index] == ' ' && *input_char_index < input_length)
@@ -192,6 +212,18 @@ int fetch_operator(char *input, int *input_char_index, int *operator, int input_
         if(input[*input_char_index] == '-')
         {
             *operator = MINUS;
+            *input_char_index = *input_char_index + 1;
+            return 1;
+        }
+        if(input[*input_char_index] == '*')
+        {
+            *operator = MULTIPLY;
+            *input_char_index = *input_char_index + 1;
+            return 1;
+        }
+        if(input[*input_char_index] == '/')
+        {
+            *operator = DIVISION;
             *input_char_index = *input_char_index + 1;
             return 1;
         }
