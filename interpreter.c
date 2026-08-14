@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#define INPUT_BUFFER_SIZE 64
+
 enum
 {
     INTEGER, PLUS, MINUS, MULTIPLY, DIVISION, SPACE, INVALID
@@ -17,15 +19,16 @@ int update_result(int operation, int left_operand, int right_operand);
 int fetch_factor(char *input, int *input_char_index, int *result, int input_length);
 int fetch_operator(char *input, int *input_char_index, int *operator, int input_length);
 int operate_term(char *input, int *input_char_index, int *result, int input_length);
+int operate_expr(char *input, int *input_char_index, int *result, int input_length);
 
 int main()
 {
-    char input[32];
+    char input[INPUT_BUFFER_SIZE];
 
     while(1)
     {
         int input_length = 0;
-        clear_input_buffer(input, 32);
+        clear_input_buffer(input, INPUT_BUFFER_SIZE);
         
         printf("calc>");
         fgets(input, sizeof(input), stdin);
@@ -73,20 +76,26 @@ int interpreter(char *input, int input_length, int *result)
     int term;
     int term2;
 
-    int rval = 0;
-    /*
-    rval = operate_term(input, &input_char_index, &term, input_length);
-    printf("result: %d, char index: %d\n", term, input_char_index);
+    return operate_expr(input, &input_char_index, result, input_length);
+}
+
+int operate_expr(char *input, int *input_char_index, int *result, int input_length)
+{
+    int operator = 0;
     
-    *result = term;
-    */
-    if(operate_term(input, &input_char_index, &term, input_length))
+    int term;
+    int term2;
+    
+    if(operate_term(input, input_char_index, &term, input_length))
     {
-        while(input_char_index < input_length)
+        while(!(input[*input_char_index] == ')')
+            && (*input_char_index < input_length))
         {
-            if(fetch_operator(input, &input_char_index, &operator, input_length))
+
+            //printf("Calling fetch operator, inside operate_expr for character %c\n", input[*input_char_index]);
+            if(fetch_operator(input, input_char_index, &operator, input_length))
             {
-                if(!operate_term(input, &input_char_index, &term2, input_length))
+                if(!operate_term(input, input_char_index, &term2, input_length))
                 {
                     return 0;
                 }
@@ -105,8 +114,15 @@ int interpreter(char *input, int input_length, int *result)
         return 1;
     }
     else return 0;
-    
-    return rval;
+}
+
+int continue_ok(char *input, int input_char_index, int input_length)
+{
+    if(input[input_char_index] == '+') return 0;
+    if(input[input_char_index] == '-') return 0;
+    if(input[input_char_index] == ')') return 0;
+    if(input_char_index >= input_length) return 0;
+    return 1;
 }
 
 int operate_term(char *input, int *input_char_index, int *result, int input_length)
@@ -118,11 +134,12 @@ int operate_term(char *input, int *input_char_index, int *result, int input_leng
     
     if(fetch_factor(input, input_char_index, &term, input_length))
     {
-        while(!(input[*input_char_index] == '+')
+        //printf("Fetch factor returned (term): %d\n", term);
+        while(continue_ok(input, *input_char_index, input_length))/*!(input[*input_char_index] == '+')
             ^ !(input[*input_char_index] == '-')
-            ^ (*input_char_index < input_length))
-            /**/
+            ^ (*input_char_index < input_length))*/
         {
+            //printf("Calling fetch operator, inside operate_term for character %c\n", input[*input_char_index]);
             if(fetch_operator(input, input_char_index, &operator, input_length))
             {
                 if(!fetch_factor(input, input_char_index, &term2, input_length))
@@ -131,6 +148,7 @@ int operate_term(char *input, int *input_char_index, int *result, int input_leng
                 }
                 else
                 {
+                    //printf("Fetch factor returned (term2): %d\n", term2);
                     term = update_result(operator, term, term2);
                     *result = term;
                 }
@@ -171,6 +189,22 @@ int fetch_factor(char *input, int *input_char_index, int *result, int input_leng
         *input_char_index = *input_char_index + 1;
     }
     
+    if(input[*input_char_index] == '(')
+    {
+        // parse expression from this point on
+        *input_char_index = *input_char_index + 1;
+        //printf("Recursive expr call with param %d\n", *result);
+        operate_expr(input, input_char_index, result, input_length);
+        //printf("Recursive expr gave result: %d\n", *result);
+        //printf("character at index when returned from recursion: %c\n", input[*input_char_index]);
+        if(input[*input_char_index] == ')')
+        {
+            *input_char_index = *input_char_index + 1;
+            return 1;
+        }
+        else return 0;
+    }
+    
     if(!(48 <= input[*input_char_index] && input[*input_char_index] <= 57))
     {
         return 0;
@@ -196,6 +230,8 @@ int fetch_factor(char *input, int *input_char_index, int *result, int input_leng
 
 int fetch_operator(char *input, int *input_char_index, int *operator, int input_length)
 {
+    // TODO: better way to check for false symbols
+    
     while(*input_char_index < input_length)
     {
         if(input[*input_char_index] == ' ')
@@ -227,8 +263,14 @@ int fetch_operator(char *input, int *input_char_index, int *operator, int input_
             *input_char_index = *input_char_index + 1;
             return 1;
         }
+        if(input[*input_char_index] == '(')
+        {
+            //printf("Fetch operator returned 0!\n");
+            return 0;
+        }
         *input_char_index = *input_char_index + 1;
     }
     
+    //printf("Fetch operator returned 0!\n");
     return 0;
 }
